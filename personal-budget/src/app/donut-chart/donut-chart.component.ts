@@ -12,9 +12,10 @@ export class DonutChartComponent implements OnInit {
   private data = [];
 
   private svg;
-  private width = 490;
+  private width = 450;
   private height = 450;
-  private radius = Math.min(this.width, this.height) / 2;
+  private margin = 40;
+  private radius = Math.min(this.width, this.height) / 2 - 60;
   private colors;
 
   private budget;
@@ -93,18 +94,25 @@ private createD3Chart(): void {
   .innerRadius(200)
   .outerRadius(this.radius);
 
-  this.svg.select('.lines')
+  // Add the polylines between chart and labels:
+  this.svg
   .selectAll('polyline')
   .data(pie(this.data))
   .enter()
   .append('polyline')
   .attr('stroke', 'black')
-  .style('stroke-width', '2px')
+  .style('fill', 'none')
+  .attr('stroke-width', 1)
   .attr('points', d => {
-      var pos = outerArc.centroid(d);
-      pos[0] = this.radius * 0.95 * (this.midAngle(d) < Math.PI ? 1 : -1);
-      return [arc.centroid(d), outerArc.centroid(d), pos[0]]
+    const posA = arc.centroid(d); // line insertion in the slice
+    const posB = outerArc.centroid(d); // line break: we use the other arc generator that has been built only for that
+    const posC = outerArc.centroid(d); // Label position = almost the same as posB
+    // we need the angle to see if the X position will be at the extreme right or extreme left
+    const midangle = d.startAngle + (d.endAngle - d.startAngle) / 2;
+    posC[0] = this.radius * 0.95 * (midangle < Math.PI ? 1 : -1); // multiply by 1 or -1 to put it on the right or on the left
+    return [posA, posB, posC];
   });
+
 
   this.svg
   .selectAll('labels')
@@ -112,9 +120,16 @@ private createD3Chart(): void {
   .enter()
   .append('text')
   .text(d => d.data.title)
-  .attr('transform', d => 'translate(' + labelPos.centroid(d) + ')')
-  .style('text-anchor', 'middle')
-  .style('font-size', 15);
+  .attr('transform', d => {
+    var pos = outerArc.centroid(d);
+    var midangle = d.startAngle + (d.endAngle - d.startAngle) / 2
+    pos[0] = this.radius * 0.99 * (midangle < Math.PI ? 1 : -1);
+    return 'translate(' + pos + ')';
+})
+  .style('text-anchor', d => {
+    var midangle = d.startAngle + (d.endAngle - d.startAngle) / 2
+    return (midangle < Math.PI ? 'start' : 'end')
+});
 
 
 }
